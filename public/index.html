@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAHIYA LOADER ADMIN</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#090909;color:white;
+ font-family:Arial,sans-serif;padding:20px
+}
+.container{max-width:850px;margin:auto}
+header{
+ background:#151515;border:1px solid #333;
+ border-radius:15px;padding:22px;margin-bottom:20px
+}
+h1{margin:0;color:#ff3333;letter-spacing:2px}
+.sub{color:#999;font-size:12px;margin-top:8px}
+.card{
+ background:#151515;border:1px solid #333;
+ border-radius:14px;padding:20px;margin-bottom:16px
+}
+h3{margin-top:0}
+input,select{
+ width:100%;padding:13px;margin:7px 0;
+ background:#080808;color:white;
+ border:1px solid #444;border-radius:8px
+}
+button{
+ background:#e32636;color:white;border:0;
+ padding:13px;border-radius:8px;
+ font-weight:bold;cursor:pointer
+}
+button:disabled{opacity:.5}
+.full{width:100%;margin-top:8px}
+.secondary{background:#333}
+.hidden{display:none}
+.item{
+ border-bottom:1px solid #333;padding:13px 0;
+ overflow-wrap:anywhere
+}
+.muted{color:#999;font-size:12px}
+#message{color:#ff7777;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>DAHIYA LOADER</h1>
+<div class="sub">PREMIUM ADMIN CONTROL PANEL · v1.0</div>
+</header>
+
+<div id="login" class="card">
+<h3>ADMIN LOGIN</h3>
+<input id="username" placeholder="Admin Username">
+<input id="password" type="password" placeholder="Admin Password">
+<button class="full" onclick="login()">LOGIN</button>
+<div id="message"></div>
+</div>
+
+<div id="dashboard" class="hidden">
+<div class="card">
+<h3>ADMIN DASHBOARD</h3>
+<p class="muted">Welcome to DAHIYA LOADER management</p>
+<button class="secondary" onclick="logout()">LOGOUT</button>
+</div>
+
+<div class="card">
+<h3>GENERATE NEW KEY</h3>
+<select id="days">
+<option value="1">1 Day</option>
+<option value="7">7 Days</option>
+<option value="30">30 Days</option>
+</select>
+<button class="full" onclick="createKey()">GENERATE KEY</button>
+<div id="newkey"></div>
+</div>
+
+<div class="card">
+<h3>KEY MANAGEMENT</h3>
+<button class="secondary" onclick="loadKeys()">REFRESH KEYS</button>
+<div id="keys"></div>
+</div>
+</div>
+</div>
+
+<script>
+let token = "";
+
+async function api(url, options={}) {
+ const response = await fetch(url,{
+  ...options,
+  headers:{
+   "Content-Type":"application/json",
+   "Authorization":"Bearer "+token,
+   ...(options.headers||{})
+  }
+ });
+ const data = await response.json();
+ if(!response.ok) throw new Error(data.error||"Request failed");
+ return data;
+}
+
+async function login(){
+ const message=document.getElementById("message");
+ try{
+  const data=await api("/api/login",{
+   method:"POST",
+   body:JSON.stringify({
+    username:document.getElementById("username").value,
+    password:document.getElementById("password").value
+   })
+  });
+  token=data.token;
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+  message.textContent="";
+  loadKeys();
+ }catch(e){message.textContent=e.message}
+}
+
+function logout(){
+ token="";
+ document.getElementById("dashboard").classList.add("hidden");
+ document.getElementById("login").classList.remove("hidden");
+}
+
+async function createKey(){
+ try{
+  const data=await api("/api/keys",{
+   method:"POST",
+   body:JSON.stringify({
+    days:Number(document.getElementById("days").value)
+   })
+  });
+  document.getElementById("newkey").textContent=
+   "New Key: "+data.key;
+  loadKeys();
+ }catch(e){alert(e.message)}
+}
+
+async function loadKeys(){
+ try{
+  const keys=await api("/api/keys");
+  const box=document.getElementById("keys");
+  box.innerHTML="";
+  keys.forEach(k=>{
+   const div=document.createElement("div");
+   div.className="item";
+   const title=document.createElement("strong");
+   title.textContent=k.key;
+   const info=document.createElement("div");
+   info.className="muted";
+   info.textContent="Expires: "+k.expiresAt+
+    " | "+(k.active?"Active":"Disabled");
+   const btn=document.createElement("button");
+   btn.className="secondary";
+   btn.textContent=k.active?"DISABLE":"ENABLE";
+   btn.style.marginTop="8px";
+   btn.onclick=()=>toggleKey(k.key);
+   div.append(title,info,document.createElement("br"),btn);
+   box.appendChild(div);
+  });
+ }catch(e){alert(e.message)}
+}
+
+async function toggleKey(key){
+ try{
+  await api("/api/keys/"+encodeURIComponent(key)+"/toggle",{
+   method:"POST"
+  });
+  loadKeys();
+ }catch(e){alert(e.message)}
+}
+</script>
+</body>
+</html>
+
